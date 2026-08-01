@@ -36,7 +36,7 @@ def test_admin_only_route_rejects_non_admin(client, db_session):
 
     response = client.post(
         "/users",
-        json={"email": "new@example.com", "password": "pw123456", "full_name": "New Guy", "role": "approver"},
+        json={"email": "new@example.com", "password": "correct-horse-battery", "full_name": "New Guy", "role": "approver"},
         headers={"Authorization": f"Bearer {token}"},
     )
 
@@ -48,7 +48,7 @@ def test_admin_only_route_allows_admin(client, db_session):
 
     response = client.post(
         "/users",
-        json={"email": "new@example.com", "password": "pw123456", "full_name": "New Guy", "role": "approver"},
+        json={"email": "new@example.com", "password": "correct-horse-battery", "full_name": "New Guy", "role": "approver"},
         headers={"Authorization": f"Bearer {token}"},
     )
 
@@ -90,7 +90,7 @@ def test_duplicate_email_returns_409(client, db_session):
     # First request to create a user
     response1 = client.post(
         "/users",
-        json={"email": "duplicate@example.com", "password": "pw123456", "full_name": "First User", "role": "approver"},
+        json={"email": "duplicate@example.com", "password": "correct-horse-battery", "full_name": "First User", "role": "approver"},
         headers={"Authorization": f"Bearer {token}"},
     )
     assert response1.status_code == 201
@@ -98,7 +98,7 @@ def test_duplicate_email_returns_409(client, db_session):
     # Second request with same email should return 409
     response2 = client.post(
         "/users",
-        json={"email": "duplicate@example.com", "password": "pw123456", "full_name": "Second User", "role": "coordinator"},
+        json={"email": "duplicate@example.com", "password": "correct-horse-battery", "full_name": "Second User", "role": "coordinator"},
         headers={"Authorization": f"Bearer {token}"},
     )
     assert response2.status_code == 409

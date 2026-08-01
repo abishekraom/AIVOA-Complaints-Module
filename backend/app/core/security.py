@@ -1,3 +1,4 @@
+import secrets
 from datetime import datetime, timedelta, timezone
 
 from jose import jwt
@@ -12,6 +13,10 @@ def hash_password(plain: str) -> str:
 
 def verify_password(plain: str, hashed: str) -> bool:
     return _pwd_context.verify(plain, hashed)
+
+# Verified against when no user matches, so an unknown email costs the same
+# bcrypt work as a known email with the wrong password (no timing oracle).
+DUMMY_PASSWORD_HASH = hash_password(secrets.token_urlsafe(32))
 
 def create_access_token(user_id: str, role: str) -> str:
     expire = datetime.now(timezone.utc) + timedelta(minutes=settings.jwt_expire_minutes)
