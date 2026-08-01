@@ -1,7 +1,8 @@
 import uuid
 
-from fastapi import APIRouter, Depends
+from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy.orm import Session
+from sqlalchemy.exc import IntegrityError
 
 from app.core.deps import get_current_user, require_role
 from app.core.security import hash_password
@@ -29,6 +30,10 @@ def create_user(
         role=payload.role,
     )
     db.add(user)
-    db.commit()
+    try:
+        db.commit()
+    except IntegrityError:
+        db.rollback()
+        raise HTTPException(status_code=409, detail="Email already registered")
     db.refresh(user)
     return user

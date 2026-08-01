@@ -1,5 +1,8 @@
 import uuid
+import pytest
+from fastapi import HTTPException
 from app.core.security import hash_password, create_access_token
+from app.core.deps import verify_signature
 from app.models.user import User, Role
 
 def _make_user(db_session, role):
@@ -50,3 +53,38 @@ def test_admin_only_route_allows_admin(client, db_session):
     )
 
     assert response.status_code == 201
+
+def test_verify_signature_success(db_session):
+    """verify_signature should not raise when password matches stored hash."""
+    user = _make_user(db_session, Role.coordinator)
+    # Should not raise
+    verify_signature("pw", user)
+
+def test_verify_signature_failure(db_session):
+    """verify_signature should raise HTTPException with 401 when password does not match."""
+    user = _make_user(db_session, Role.coordinator)
+    with pytest.raises(HTTPException) as exc_info:
+        verify_signature("wrong_password", user)
+    assert exc_info.value.status_code == 401
+
+def test_duplicate_email_returns_409(client, db_session):
+    """POST /users with duplicate email should return 409."""
+    admin = _make_user(db_session, Role.admin)
+    token = create_access_token(user_id=str(admin.id), role=admin.role)
+
+    # First request to create a user
+    response1 = client.post(
+        "/users",
+        json={"email": "duplicate@example.com", "password": "pw123456", "full_name": "First User", "role": "approver"},
+        headers={"Authorization": f"Bearer {token}"},
+    )
+    assert response1.status_code == 201
+
+    # Second request with same email should return 409
+    response2 = client.post(
+        "/users",
+        json={"email": "duplicate@example.com", "password": "pw123456", "full_name": "Second User", "role": "coordinator"},
+        headers={"Authorization": f"Bearer {token}"},
+    )
+    assert response2.status_code == 409
+    assert "already registered" in response2.json()["detail"].lower()
