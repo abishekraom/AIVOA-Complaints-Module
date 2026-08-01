@@ -15,6 +15,12 @@ def write_audited_field(
     source: AuditSource,
     reason: str | None = None,
 ) -> None:
+    if complaint.id is None:
+        # Complaint.id has a Python-side default that only applies at flush
+        # time. Flush now so complaint.id is populated before we read it for
+        # the audit entry below - otherwise the entry ends up with a null
+        # complaint_id and is orphaned from the complaint it describes.
+        db.flush()
     old_value = getattr(complaint, field_name)
     setattr(complaint, field_name, new_value)
     db.add(
@@ -39,6 +45,15 @@ def record_transition(
     actor: User,
     reason: str | None = None,
 ) -> None:
+    if complaint.id is None:
+        # See write_audited_field: flush so complaint.id is populated before
+        # we read it below, avoiding an orphaned audit entry with a null
+        # complaint_id.
+        db.flush()
+    if complaint.status != from_status:
+        raise ValueError(
+            f"Expected complaint status to be {from_status}, but it is {complaint.status}"
+        )
     complaint.status = to_status
     db.add(
         AuditLogEntry(

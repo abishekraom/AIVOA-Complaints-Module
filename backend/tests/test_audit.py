@@ -1,5 +1,7 @@
 import uuid
 
+import pytest
+
 from app.core.audit import record_transition, write_audited_field
 from app.core.security import hash_password
 from app.models.audit import AuditLogEntry, AuditSource
@@ -56,3 +58,38 @@ def test_record_transition_logs_status_change(db_session):
     assert entry.old_value == "pending_approval"
     assert entry.new_value == "pending_rework_triage"
     assert entry.reason == "Missing batch number"
+
+def test_write_audited_field_flushes_unpersisted_complaint_to_get_id(db_session):
+    """Complaint.id is populated by a Python-side default only at flush
+    time. Calling write_audited_field on a Complaint that was never
+    explicitly given an id and never flushed must not produce an audit
+    entry with a null complaint_id."""
+    actor = _make_user(db_session, Role.coordinator)
+    complaint = Complaint(status=ComplaintStatus.pending_approval, created_by=actor.id)
+    db_session.add(complaint)
+
+    write_audited_field(db_session, complaint, "product_name", "Amoxicillin Capsules", actor, AuditSource.ai)
+    db_session.commit()
+
+    assert complaint.id is not None
+    entry = db_session.query(AuditLogEntry).filter_by(field_name="product_name").one()
+    assert entry.complaint_id is not None
+    assert entry.complaint_id == complaint.id
+
+def test_record_transition_rejects_mismatched_from_status(db_session):
+    actor = _make_user(db_session, Role.approver)
+    complaint = Complaint(id=uuid.uuid4(), status=ComplaintStatus.pending_approval, created_by=actor.id)
+    db_session.add(complaint)
+    db_session.commit()
+
+    with pytest.raises(ValueError):
+        record_transition(
+            db_session,
+            complaint,
+            ComplaintStatus.approved_closed,  # wrong: actual status is pending_approval
+            ComplaintStatus.pending_rework_triage,
+            actor,
+        )
+
+    assert complaint.status == ComplaintStatus.pending_approval
+    assert db_session.query(AuditLogEntry).filter_by(complaint_id=complaint.id, action="status_transition").count() == 0
