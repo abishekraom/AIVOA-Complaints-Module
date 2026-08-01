@@ -8,11 +8,7 @@ from app.models.user import User
 
 def _resolve_complaint_id(db: Session, complaint: Complaint) -> uuid.UUID:
     if complaint.id is None:
-        # Complaint.id has a Python-side default that only applies at flush
-        # time. Flush now so complaint.id is populated before we read it for
-        # the audit entry - otherwise the entry ends up with a null
-        # complaint_id and is orphaned from the complaint it describes.
-        db.flush()
+        db.flush([complaint])
     if complaint.id is None:
         raise ValueError(
             "Cannot write an audit entry for a complaint with no id; "
