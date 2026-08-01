@@ -1,25 +1,42 @@
+import os
 import uuid
+from pathlib import Path
+
 import pytest
+from alembic import command
+from alembic.config import Config
 from sqlalchemy import create_engine, text
 from sqlalchemy.orm import sessionmaker
 from app.config import settings
-from app.db import Base
 
 TEST_DB_NAME = f"test_{uuid.uuid4().hex[:8]}"
 ADMIN_URL = settings.database_url.rsplit("/", 1)[0] + "/postgres"
 TEST_URL = settings.database_url.rsplit("/", 1)[0] + f"/{TEST_DB_NAME}"
+
+BACKEND_DIR = Path(__file__).resolve().parent.parent
+ALEMBIC_INI = BACKEND_DIR / "alembic.ini"
 
 @pytest.fixture(scope="session", autouse=True)
 def _test_database():
     admin_engine = create_engine(ADMIN_URL, isolation_level="AUTOCOMMIT")
     with admin_engine.connect() as conn:
         conn.execute(text(f"CREATE DATABASE {TEST_DB_NAME}"))
+
+    # Run the real Alembic migration chain against the scratch database,
+    # instead of Base.metadata.create_all(), so schema drift between the
+    # models and the committed migrations is caught by the test suite.
+    # The vector extension is created by migration 0001, so no manual
+    # CREATE EXTENSION step is needed here.
+    original_cwd = os.getcwd()
+    os.chdir(BACKEND_DIR)
+    try:
+        alembic_cfg = Config(str(ALEMBIC_INI))
+        alembic_cfg.set_main_option("sqlalchemy.url", TEST_URL)
+        command.upgrade(alembic_cfg, "head")
+    finally:
+        os.chdir(original_cwd)
+
     engine = create_engine(TEST_URL)
-    with engine.connect() as conn:
-        conn.execute(text("CREATE EXTENSION IF NOT EXISTS vector"))
-        conn.commit()
-    from app.models import user, complaint, attachment, audit  # noqa: F401
-    Base.metadata.create_all(engine)
     yield engine
     engine.dispose()
     with admin_engine.connect() as conn:
