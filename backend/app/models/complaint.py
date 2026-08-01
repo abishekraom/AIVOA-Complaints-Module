@@ -24,7 +24,7 @@ class Complaint(Base):
 
     id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
     complaint_number: Mapped[str | None] = mapped_column(String(30), unique=True, nullable=True, index=True)
-    status: Mapped[ComplaintStatus] = mapped_column(String(30), nullable=False)
+    status: Mapped[ComplaintStatus] = mapped_column(String(30), nullable=False, index=True)
 
     # Section 1: Origin & Customer Details
     complaint_source: Mapped[str | None] = mapped_column(String(255), nullable=True)
