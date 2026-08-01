@@ -1,0 +1,26 @@
+# Internal planning artifacts - never pushed to the public repo
+.claude/
+docs/
+Docs/
+CONTEXT.md
+
+# Python
+backend/__pycache__/
+backend/**/__pycache__/
+backend/.venv/
+backend/*.egg-info/
+backend/.pytest_cache/
+
+# Node / frontend
+frontend/node_modules/
+frontend/dist/
+frontend/.vite/
+
+# Env and secrets
+.env
+backend/.env
+frontend/.env
+
+# OS
+.DS_Store
+Thumbs.db
