@@ -2,7 +2,7 @@ import uuid
 import pytest
 from fastapi import HTTPException
 from app.core.security import hash_password, create_access_token
-from app.core.deps import verify_signature
+from app.core.deps import require_role, verify_signature
 from app.models.user import User, Role
 
 def _make_user(db_session, role):
@@ -66,6 +66,21 @@ def test_verify_signature_failure(db_session):
     with pytest.raises(HTTPException) as exc_info:
         verify_signature("wrong_password", user)
     assert exc_info.value.status_code == 401
+
+def test_require_role_allows_any_of_multiple_roles_and_rejects_others(db_session):
+    """require_role(*roles) is the variadic usage pattern later plans rely
+    on (e.g. require_role(Role.approver, Role.admin)) - verify both listed
+    roles are allowed and an unlisted role is rejected."""
+    approver = _make_user(db_session, Role.approver)
+    admin = _make_user(db_session, Role.admin)
+    coordinator = _make_user(db_session, Role.coordinator)
+    checker = require_role(Role.approver, Role.admin)
+
+    assert checker(user=approver) is approver
+    assert checker(user=admin) is admin
+    with pytest.raises(HTTPException) as exc_info:
+        checker(user=coordinator)
+    assert exc_info.value.status_code == 403
 
 def test_duplicate_email_returns_409(client, db_session):
     """POST /users with duplicate email should return 409."""

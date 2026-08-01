@@ -17,9 +17,12 @@ def get_current_user(token: str | None = Depends(oauth2_scheme), db: Session = D
         raise HTTPException(status_code=401, detail="Not authenticated")
     try:
         payload = decode_access_token(token)
-    except JWTError:
-        raise HTTPException(status_code=401, detail="Invalid or expired token")
-    user = db.get(User, uuid.UUID(payload["sub"]))
+    except JWTError as err:
+        raise HTTPException(status_code=401, detail="Invalid or expired token") from err
+    try:
+        user = db.get(User, uuid.UUID(payload["sub"]))
+    except (ValueError, KeyError) as err:
+        raise HTTPException(status_code=401, detail="Invalid or expired token") from err
     if user is None or not user.is_active:
         raise HTTPException(status_code=401, detail="User not found or inactive")
     return user

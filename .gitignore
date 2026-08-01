@@ -3,6 +3,7 @@
 docs/
 Docs/
 CONTEXT.md
+.superpowers/
 
 # Python
 backend/__pycache__/

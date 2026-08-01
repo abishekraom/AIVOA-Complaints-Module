@@ -34,3 +34,19 @@ def test_login_rejects_wrong_password(client, db_session):
     response = client.post("/auth/login", json={"email": "coord@example.com", "password": "wrong-password"})
 
     assert response.status_code == 401
+
+def test_login_rejects_inactive_user(client, db_session):
+    user = User(
+        id=uuid.uuid4(),
+        email="inactive@example.com",
+        password_hash=hash_password("correct-horse-battery"),
+        full_name="Inactive User",
+        role=Role.coordinator,
+        is_active=False,
+    )
+    db_session.add(user)
+    db_session.commit()
+
+    response = client.post("/auth/login", json={"email": "inactive@example.com", "password": "correct-horse-battery"})
+
+    assert response.status_code == 401

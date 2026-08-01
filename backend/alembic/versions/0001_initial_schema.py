@@ -125,5 +125,7 @@ def downgrade() -> None:
     op.drop_table('complaints')
     op.drop_index(op.f('ix_users_email'), table_name='users')
     op.drop_table('users')
-    op.execute("DROP EXTENSION IF EXISTS vector")
+    # Intentionally not dropping the vector extension here: it is a shared
+    # Postgres extension and other objects in the database may depend on it,
+    # so downgrading this migration should not risk breaking them.
     # ### end Alembic commands ###
