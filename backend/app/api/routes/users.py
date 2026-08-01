@@ -1,6 +1,7 @@
 import uuid
 
 from fastapi import APIRouter, Depends, HTTPException
+from psycopg.errors import UniqueViolation
 from sqlalchemy.orm import Session
 from sqlalchemy.exc import IntegrityError
 
@@ -32,8 +33,10 @@ def create_user(
     db.add(user)
     try:
         db.commit()
-    except IntegrityError:
+    except IntegrityError as err:
         db.rollback()
-        raise HTTPException(status_code=409, detail="Email already registered")
+        if not isinstance(err.orig, UniqueViolation):
+            raise
+        raise HTTPException(status_code=409, detail="Email already registered") from err
     db.refresh(user)
     return user

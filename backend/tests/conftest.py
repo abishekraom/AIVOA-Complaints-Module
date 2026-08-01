@@ -6,7 +6,12 @@ import pytest
 from alembic import command
 from alembic.config import Config
 from sqlalchemy import create_engine, text
+from sqlalchemy.engine import make_url
 from sqlalchemy.orm import sessionmaker
+# JWT_SECRET is a required setting with no default, so the suite supplies its
+# own throwaway value when the environment does not already provide one.
+os.environ.setdefault("JWT_SECRET", "test-secret")
+
 from app.config import settings
 
 TEST_DB_NAME = f"test_{uuid.uuid4().hex[:8]}"
@@ -18,6 +23,14 @@ ALEMBIC_INI = BACKEND_DIR / "alembic.ini"
 
 @pytest.fixture(scope="session", autouse=True)
 def _test_database():
+    host = make_url(settings.database_url).host or "localhost"
+    if host not in ("localhost", "127.0.0.1", "::1"):
+        pytest.exit(
+            f"Refusing to run: DATABASE_URL points at host {host!r}. "
+            "The test suite creates and drops databases, so it only runs "
+            "against a local Postgres.",
+            returncode=1,
+        )
     admin_engine = create_engine(ADMIN_URL, isolation_level="AUTOCOMMIT")
     with admin_engine.connect() as conn:
         conn.execute(text(f"CREATE DATABASE {TEST_DB_NAME}"))

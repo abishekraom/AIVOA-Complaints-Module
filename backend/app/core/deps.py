@@ -10,7 +10,7 @@ from app.core.security import decode_access_token, verify_password
 from app.db import get_db
 from app.models.user import Role, User
 
-oauth2_scheme = OAuth2PasswordBearer(tokenUrl="/auth/login", auto_error=False)
+oauth2_scheme = OAuth2PasswordBearer(tokenUrl="/auth/token", auto_error=False)
 
 def get_current_user(token: str | None = Depends(oauth2_scheme), db: Session = Depends(get_db)) -> User:
     if token is None:
