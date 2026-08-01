@@ -7,8 +7,11 @@ from passlib.context import CryptContext
 from app.config import settings
 
 _pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
+BCRYPT_MAX_PASSWORD_BYTES = 72
 
 def hash_password(plain: str) -> str:
+    if len(plain.encode()) > BCRYPT_MAX_PASSWORD_BYTES:
+        raise ValueError(f"password must be at most {BCRYPT_MAX_PASSWORD_BYTES} bytes")
     return _pwd_context.hash(plain)
 
 def verify_password(plain: str, hashed: str) -> bool:
