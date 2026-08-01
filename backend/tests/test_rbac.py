@@ -103,3 +103,32 @@ def test_duplicate_email_returns_409(client, db_session):
     )
     assert response2.status_code == 409
     assert "already registered" in response2.json()["detail"].lower()
+
+def _create_user_as_admin(client, db_session, password):
+    admin = _make_user(db_session, Role.admin)
+    token = create_access_token(user_id=str(admin.id), role=admin.role)
+    return client.post(
+        "/users",
+        json={"email": "policy@example.com", "password": password, "full_name": "Policy", "role": "approver"},
+        headers={"Authorization": f"Bearer {token}"},
+    )
+
+def test_create_user_rejects_short_password(client, db_session):
+    assert _create_user_as_admin(client, db_session, "pw123456").status_code == 422
+
+def test_create_user_rejects_password_over_72_bytes(client, db_session):
+    # 40 characters, but 120 bytes once UTF-8 encoded.
+    assert _create_user_as_admin(client, db_session, "パスワード" * 8).status_code == 422
+
+def test_create_user_stores_email_lowercased(client, db_session):
+    admin = _make_user(db_session, Role.admin)
+    token = create_access_token(user_id=str(admin.id), role=admin.role)
+
+    response = client.post(
+        "/users",
+        json={"email": "Upper.Case@Example.COM", "password": "correct-horse-battery", "full_name": "Upper", "role": "approver"},
+        headers={"Authorization": f"Bearer {token}"},
+    )
+
+    assert response.status_code == 201
+    assert response.json()["email"] == "upper.case@example.com"

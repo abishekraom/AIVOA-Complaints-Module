@@ -50,3 +50,21 @@ def test_login_rejects_inactive_user(client, db_session):
     response = client.post("/auth/login", json={"email": "inactive@example.com", "password": "correct-horse-battery"})
 
     assert response.status_code == 401
+
+def test_login_is_case_insensitive_for_email(client, db_session):
+    user = User(
+        id=uuid.uuid4(),
+        email="mixed.case@example.com",
+        password_hash=hash_password("correct-horse-battery"),
+        full_name="Mixed Case",
+        role=Role.coordinator,
+    )
+    db_session.add(user)
+    db_session.commit()
+
+    response = client.post(
+        "/auth/login",
+        json={"email": "Mixed.Case@Example.COM", "password": "correct-horse-battery"},
+    )
+
+    assert response.status_code == 200

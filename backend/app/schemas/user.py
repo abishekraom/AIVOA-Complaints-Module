@@ -9,10 +9,19 @@ from app.models.user import Role
 # email crossing the API boundary is folded to lowercase here.
 NormalizedEmail = Annotated[EmailStr, AfterValidator(str.lower)]
 
+BCRYPT_MAX_PASSWORD_BYTES = 72
+
+def _within_bcrypt_limit(value: str) -> str:
+    # bcrypt silently truncates beyond 72 *bytes*, not characters.
+    if len(value.encode()) > BCRYPT_MAX_PASSWORD_BYTES:
+        raise ValueError(f"password must be at most {BCRYPT_MAX_PASSWORD_BYTES} bytes")
+    return value
+
+Password = Annotated[str, Field(min_length=12), AfterValidator(_within_bcrypt_limit)]
+
 class UserCreate(BaseModel):
     email: NormalizedEmail
-    # 72 is bcrypt's silent-truncation limit.
-    password: str = Field(min_length=12, max_length=72)
+    password: Password
     full_name: str
     role: Role
 
